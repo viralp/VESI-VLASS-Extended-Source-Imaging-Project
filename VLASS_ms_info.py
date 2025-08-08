@@ -1,33 +1,27 @@
 import os
 import sys
-import re
-import glob
 import math
+import glob
 import csv
-import argparse
+import re
 import subprocess
-import urllib.request
+import argparse
 import requests
-
+import urllib.request
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 from astropy.io import fits
-from astropy.table import Table, hstack
-from astropy.coordinates import (
-    SkyCoord, ICRS, Galactic, FK4, FK5,
-    Angle, Latitude, Longitude
-)
+from astropy.stats import sigma_clipped_stats, SigmaClip
+from astropy.coordinates import SkyCoord, ICRS, Galactic, FK4, FK5, Angle, Latitude, Longitude
 from astropy.wcs import WCS
 from astropy.time import Time
 from astropy import units as u
-from astropy.stats import SigmaClip, sigma_clipped_stats
-from astropy.convolution import convolve_fft, Gaussian2DKernel
-
+from astropy.table import Table, hstack
 from reproject import reproject_interp
+from astropy.convolution import convolve_fft, Gaussian2DKernel
 from radio_beam import Beam
-
+from urllib.request import urlopen
 
 
 def unique(list1):
@@ -213,56 +207,71 @@ try:
 
    url = 'https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name +'/'+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits'
    if check_url_exists(url):
-      print(vlsid,tile_id,full_directory_name)
-      #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name +'/'+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits')
-      #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name + '/casa_commands.log')
-      #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid +'_casa_commands.log')
+   #ms_list=unique(mslist) 
+      os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name +'/'+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits')
+      os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name + '/casa_commands.log')
+      os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid +'_casa_commands.log')
    else:
       full_directory_name=full_directory_name.replace(".v1",".v2")
-      print(vlsid,tile_id,full_directory_name)
-      #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name +'/'+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits')
-      #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name + '/casa_commands.log')
-      #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid +'_casa_commands.log')
+      os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name +'/'+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits')
+      os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid + '/' + tile_id + '/' + full_directory_name + '/casa_commands.log')
+      os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid +'_casa_commands.log')
  
 
    url = 'https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 +'/'+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits'
 
    if check_url_exists(url):
-     print(vlsid,tile_id,full_directory_name2)
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 +'/'+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits')
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 + '/casa_commands.log')
-     #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid2 +'_casa_commands.log')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 +'/'+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 + '/casa_commands.log')
+     os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid2 +'_casa_commands.log')
    else:
      full_directory_name2=full_directory_name2.replace(".v1",".v2")
-     print(vlsid,tile_id,full_directory_name2)
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 +'/'+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits')
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 + '/casa_commands.log')
-     #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid2 +'_casa_commands.log')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 +'/'+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid2 + '/' + tile_id + '/' + full_directory_name2 + '/casa_commands.log')
+     os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid2 +'_casa_commands.log')
 
    url= 'https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 +'/'+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits'
 
    if check_url_exists(url):
-     print(vlsid,tile_id,full_directory_name3)
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 +'/'+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits')
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 + '/casa_commands.log')
-     #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid3 +'_casa_commands.log')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 +'/'+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 + '/casa_commands.log')
+     os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid3 +'_casa_commands.log')
    else:
      full_directory_name3=full_directory_name3.replace(".v1",".v2")
-     print(vlsid,tile_id,full_directory_name3)
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 +'/'+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits')
-     #os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 + '/casa_commands.log')
-     #os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid3 +'_casa_commands.log')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 +'/'+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits')
+     os.system('wget https://archive-new.nrao.edu/vlass/quicklook/' + vlsid3 + '/' + tile_id + '/' + full_directory_name3 + '/casa_commands.log')
+     os.system('mv'+' '+'casa_commands.log'+' '+Object_name+'_'+ vlsid3 +'_casa_commands.log')
    
-   #os.system('mv'+' '+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid)+'_image.fits')
-   #os.system('mv'+' '+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid2)+'_image.fits')
-   #os.system('mv'+' '+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid3)+'_image.fits')
+   os.system('mv'+' '+full_directory_name+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid)+'_image.fits')
+   os.system('mv'+' '+full_directory_name2+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid2)+'_image.fits')
+   os.system('mv'+' '+full_directory_name3+'.I.iter1.image.pbcor.tt0.subim.fits'+' '+Object_name+'_VLASS_'+ str(vlsid3)+'_image.fits')
    print(Object_name,RA,DEC,RA2,DEC2,min_deg,vlsid,tile_id,full_directory_name,URL_name,mslist[0])
 except:
    pass
 print('\n')  
 
 
-
-
+log_files = sorted(glob.glob(f"{Object_name}*.log"))
+if not log_files:
+    print("No .log files found in the current directory.")
+    exit()
+print("Found log files:")
+for lf in log_files:
+    print("  ", lf)
+print("\nExtracted MS entries:")
+for log_file in log_files:
+    with open(log_file, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        if 'hifv_importdata' in line and 'vis=[' in line:
+            # Match .ms or _split.ms inside vis=['...']
+            vis_match = re.search(r"vis=\[(?:'|\")(.+?)(?:_split)?\.ms(?:'|\")\]", line)
+            if vis_match:
+                vis_base = vis_match.group(1)  # e.g., VLASS2.sb123...
+                ms_name = vis_base + ".ms"
+                # Extract VLASS version from vis_base string
+                vlass_version_match = re.search(r'(VLASS\d(?:\.\d)?)', vis_base, re.IGNORECASE)
+                vlass_version = vlass_version_match.group(1) if vlass_version_match else "Unknown"
+                print(f"{vlass_version} --> {ms_name}")
 
 
