@@ -1,7 +1,7 @@
 # VESI-VLASS Extended Source Imaging Project
 
 ## Download VLASS multi epoch data from NRAO archive
-1, Find out multi epoch measurement sets for required (extended) source
+1, Find out multi epoch measurement sets for required (extended) source.
 
 > Python3 VLASS_ms_info.py <Source_name> <RA_in_deg> <Dec_in_deg> 
 
@@ -9,7 +9,7 @@ This will print VLASS ms names which have covered the source pointings
 
 2, Download data from NRAO archive "https://data.nrao.edu/portal/" by selecting the "Archive Filename" option.
 
-Edit the "VLASS_awp_joint_run.py" script, add ms names in it, select the required options with "True" or "False" and execute the script with CASA (6.7)
+3, Download all files into the same directory. Edit the "VLASS_awp_joint_run.py" script, add ms names in it (under the "vis_list"), select the required options with "True" or "False" (under the "processing_flags") and execute the script with CASA (6.7) as
 
 > casa --nologger -c VLASS_awp_joint_run.py
 
