@@ -1,7 +1,7 @@
 # VESI-VLASS Extended Source Imaging Project
 
 ## Download VLASS multi epoch data from NRAO archive
-1, Find out multi epoch measurement sets for required (extended) source.
+1, Find out multi epoch measurement sets for required (extended/point) source.
 
 > Python3 VLASS_ms_info.py <Source_name> <RA_in_deg> <Dec_in_deg> 
 
@@ -9,9 +9,18 @@ This will print VLASS ms names which have covered the source pointings
 
 2, Download data from NRAO archive "https://data.nrao.edu/portal/" by selecting the "Archive Filename" option.
 
-3, Download all files into the same directory. Edit the "VLASS_awp_joint_run.py" script, add ms names in it (under the "vis_list"), select the required options with "True" or "False" (under the "processing_flags") and execute the script with CASA (6.7) as
+3, Download all files into the same directory. Edit the "VLASS_awp_joint_parameters.py" script, add ms names in it (under the "vis_list"), select the required options with "True" or "False" (under the "processing_flags") and execute the script with CASA (6.7) as
 
 > casa --nologger -c VLASS_awp_joint_run.py
+
+One might need to install following packages in CASA
+ 
+> CASA --nologger
+> !pip3 install --user scikit-image radio-beam reproject opencv-python
+
+4, Run on the NRAO luster - Add following into sbatch script
+
+> xvfb-run -d /lustre/aoc/users/vparekh/CASA/casa-6.7.0-31-py3.10.el8/bin/casa --nologger -c VLASS_awp_joint_run.py (CASA with pre-installed packages)
 
 ## Processing Steps
 
