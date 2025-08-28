@@ -15,7 +15,7 @@ This will print VLASS ms names which have covered the source pointings
 
 One might need to install following packages in CASA
  
-> CASA --nologger
+> CASA --nologger  
 > !pip3 install --user scikit-image radio-beam reproject opencv-python
 
 4, Run on the NRAO luster - Add following into sbatch script
