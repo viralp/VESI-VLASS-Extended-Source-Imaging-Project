@@ -1,0 +1,7 @@
+imagename='VLASS3_Radiogal_CC'
+phasecenter='J2000 03:05:06.51 +67.25.48.780'
+imaging_mode='VLASS-SE-CUBE'
+pblimit=0.15
+search_radius_arcsec=360
+imsize=2500
+spw=['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17']
