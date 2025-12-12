@@ -1,0 +1,6 @@
+imagename='VLASS3_Radiogal'
+phasecenter='J2000 03:05:06.51 +67.25.48.780'
+imaging_mode='VLASS-SE-CONT-MOSAIC'
+pblimit=0.15
+search_radius_arcsec=360
+
