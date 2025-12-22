@@ -353,6 +353,56 @@ def find_ms_in_cwd():
     return ms_list
 
 
+def ensure_ms_in_cwd(ms_input: str, epoch_index: int = 0):
+    """
+    Allow user to provide an MS from anywhere on disk.
+
+    - If ms_input points to an existing path outside the current directory,
+      create a symlink in the current working directory using the MS basename.
+    - Returns the name/path that should be written into VLASS_web_config.json
+      (usually the basename in the current directory).
+    """
+    ms_input = (ms_input or "").strip()
+    if not ms_input:
+        return ""
+
+    p = Path(ms_input)
+
+    # If it's already a local name and exists, keep it
+    if p.exists() and p.is_absolute() is False and not str(p).startswith((".."+os.sep, "."+os.sep)):
+        return ms_input
+
+    # If user provided a path that exists, link it locally to avoid
+    # downstream scripts treating path separators as part of imagename.
+    if p.exists():
+        base = p.name
+        link_path = Path(base)
+
+        # If basename already exists and points elsewhere, make a unique link name
+        if link_path.exists():
+            try:
+                if link_path.resolve() == p.resolve():
+                    return base
+            except Exception:
+                pass
+            stem = base[:-3] if base.endswith(".ms") else base
+            base = f"{stem}_link{epoch_index}.ms" if base.endswith(".ms") else f"{stem}_link{epoch_index}"
+            link_path = Path(base)
+
+        try:
+            os.symlink(str(p.resolve()), str(link_path))
+        except FileExistsError:
+            pass
+        except OSError:
+            # Symlink may be disallowed on some systems; fall back to original path
+            return ms_input
+
+        return base
+
+    # If it doesn't exist, just return what the user typed (will error later if used)
+    return ms_input
+
+
 def pick_epoch_ms(ms_list):
     """
     From a list of MS names, pick at most one MS per epoch (VLASS1/2/3).
@@ -466,6 +516,16 @@ TEMPLATE = """
         font-size: 0.95em;
       }
     </style>
+    <script>
+      function openBrowse(fieldId) {
+        var url = "/browse_ms?field=" + encodeURIComponent(fieldId);
+        window.open(
+          url,
+          "ms_browse_" + fieldId,
+          "width=900,height=650,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes"
+        );
+      }
+    </script>
   </head>
   <body>
     <div class="header">
@@ -493,6 +553,12 @@ TEMPLATE = """
     {% endif %}
 
     <form method="post" action="{{ url_for('index') }}" enctype="multipart/form-data">
+      <!-- MS path suggestions (local *.ms in current directory); you can also paste any absolute/relative path -->
+      <datalist id="ms_datalist">
+        {% for m in local_ms %}
+          <option value="{{m}}"></option>
+        {% endfor %}
+      </datalist>
       <!-- SECTION 1: FIND MS -->
       <fieldset>
         <legend>STEP 1 – Find VLASS Measurement Sets</legend>
@@ -587,13 +653,16 @@ TEMPLATE = """
             <p><b>VLASS {{ i }}</b></p>
             <p>
               <label>Measurement set:</label>
-              <select name="vis{{i}}">
-                <option value="">-- none --</option>
+              <select name="vis{{i}}" id="vis{{i}}" style="width: 260px;">
+                <option value="" {% if not selected_vis[i] %}selected{% endif %}>(none)</option>
                 {% for m in local_ms %}
-                  <option value="{{m}}"
-                    {% if selected_vis[i] == m %}selected{% endif %}>{{m}}</option>
+                  <option value="{{ m }}" {% if selected_vis[i] == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
+                {% if selected_vis[i] and (selected_vis[i] not in local_ms) %}
+                  <option value="{{ selected_vis[i] }}" selected>{{ selected_vis[i] }}</option>
+                {% endif %}
               </select>
+              <button type="button" onclick="openBrowse('vis{{i}}')">Browse...</button>
             </p>
             <p>
               <label>Target_split:</label>
@@ -869,13 +938,16 @@ TEMPLATE = """
             <p><b>VLASS {{ i }}</b></p>
             <p>
               <label>Measurement set:</label>
-              <select name="std_vis{{i}}">
-                <option value="">-- none --</option>
+              <select name="std_vis{{i}}" id="std_vis{{i}}" style="width: 260px;">
+                <option value="" {% if not std_params[i]['vis'] %}selected{% endif %}>(none)</option>
                 {% for m in local_ms %}
-                  <option value="{{m}}"
-                    {% if std_params[i]['vis'] == m %}selected{% endif %}>{{m}}</option>
+                  <option value="{{ m }}" {% if std_params[i]['vis'] == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
+                {% if std_params[i]['vis'] and (std_params[i]['vis'] not in local_ms) %}
+                  <option value="{{ std_params[i]['vis'] }}" selected>{{ std_params[i]['vis'] }}</option>
+                {% endif %}
               </select>
+              <button type="button" onclick="openBrowse('std_vis{{i}}')">Browse...</button>
             </p>
             <p>
               <label>Imagename:</label>
@@ -932,6 +1004,239 @@ TEMPLATE = """
 </html>
 """
 
+
+BROWSE_TEMPLATE = r"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Browse .ms</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 16px; color: #003366; }
+      a { color: #0055aa; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code { background: #f3f6fb; padding: 2px 4px; border-radius: 4px; }
+      .pathbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #c9d8ea;
+        border-radius: 8px;
+        background: #f7fbff;
+      }
+      .pathbar input[type=text] { width: 560px; max-width: 70vw; }
+      button {
+        background-color: #0055aa;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover { background-color: #003f7d; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+      .panel {
+        border: 1px solid #c9d8ea;
+        border-radius: 8px;
+        padding: 10px;
+        background: #ffffff;
+      }
+      .panel h4 { margin: 0 0 8px 0; font-size: 1.0em; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 6px 8px; border-bottom: 1px solid #eef3f9; vertical-align: top; }
+      td.actions { white-space: nowrap; text-align: right; }
+      .ms { font-weight: bold; color: #0b5b2a; }
+      .dir { color: #003366; }
+      .muted { color: #556; font-size: 0.95em; }
+      .topline { margin-top: 10px; }
+      .quick a { margin-right: 10px; }
+    </style>
+
+    <script>
+      function selectMS(fieldId, value) {
+        if (!window.opener) {
+          alert("No parent window found.");
+          return;
+        }
+        var el = window.opener.document.getElementById(fieldId);
+        if (!el) {
+          var els = window.opener.document.getElementsByName(fieldId);
+          if (els && els.length) el = els[0];
+        }
+        if (!el) {
+          alert("Could not find field '" + fieldId + "' in the parent form.");
+          return;
+        }
+
+        var tag = (el.tagName || "").toLowerCase();
+        if (tag === "select") {
+          var found = false;
+          for (var i = 0; i < el.options.length; i++) {
+            if (el.options[i].value === value) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            var opt = window.opener.document.createElement("option");
+            opt.value = value;
+            opt.text = value;
+            el.appendChild(opt);
+          }
+          el.value = value;
+        } else {
+          el.value = value;
+        }
+        window.close();
+      }
+    </script>
+  </head>
+
+  <body>
+    <h3>Pick a <code>.ms</code> directory</h3>
+
+    <div class="pathbar">
+      <form method="get" action="/browse_ms" style="margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+        <input type="hidden" name="field" value="{{ field }}">
+        <label for="path" style="font-weight: bold;">Directory:</label>
+        <input type="text" id="path" name="path" value="{{ path }}">
+        <button type="submit">Go</button>
+        <span class="quick muted">
+          Quick links:
+          <a href="/browse_ms?field={{ field }}&path=/">/</a>
+          {% if home_path %}
+            <a href="/browse_ms?field={{ field }}&path={{ home_path }}">home</a>
+          {% endif %}
+          {% if cwd_path %}
+            <a href="/browse_ms?field={{ field }}&path={{ cwd_path }}">cwd</a>
+          {% endif %}
+          {% if parent %}
+            <a href="/browse_ms?field={{ field }}&path={{ parent }}">⬅ parent</a>
+          {% endif %}
+        </span>
+      </form>
+    </div>
+
+    <p class="topline muted">Current folder: <code>{{ path }}</code></p>
+
+    {% if error %}
+      <p style="color: #b00;"><b>{{ error }}</b></p>
+    {% endif %}
+
+    <div class="grid">
+      <div class="panel">
+        <h4>Measurement Sets (.ms) in this folder</h4>
+        {% if ms_entries %}
+          <table>
+            <tbody>
+              {% for e in ms_entries %}
+                <tr>
+                  <td><span class="ms">{{ e.name }}</span></td>
+                  <td class="actions">
+                    <a href="#" onclick="selectMS('{{ field }}', '{{ e.full|e }}'); return false;">Select</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted"><i>No <code>.ms</code> directories here.</i></p>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h4>Folders</h4>
+        {% if dir_entries %}
+          <table>
+            <tbody>
+              {% for e in dir_entries %}
+                <tr>
+                  <td><span class="dir">{{ e.name }}/</span></td>
+                  <td class="actions">
+                    <a href="/browse_ms?field={{ field }}&path={{ e.full|e }}">Open</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted"><i>No subfolders found here.</i></p>
+        {% endif %}
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 12px;">
+      Tip: You can paste any absolute path (e.g. <code>/lustre/...</code>) into the Directory box and press <b>Go</b>.
+    </p>
+  </body>
+</html>
+"""
+
+
+@app.route("/browse_ms", methods=["GET"])
+def browse_ms():
+    field = request.args.get("field", "").strip()
+    path = request.args.get("path", "").strip()
+
+    # Default to current working directory if no path provided
+    if not path:
+        path = str(Path.cwd())
+
+    # Expand ~ and env vars
+    path = os.path.expandvars(os.path.expanduser(path))
+    path = os.path.abspath(path)
+
+    error = None
+    entries = []
+    parent = None
+
+    if not os.path.isdir(path):
+        error = f"Not a directory: {path}"
+        path = str(Path.cwd())
+        path = os.path.abspath(path)
+
+    # Parent directory link
+    try:
+        parent = os.path.abspath(os.path.join(path, os.pardir))
+        if parent == path:
+            parent = None
+    except Exception:
+        parent = None
+
+    # List subdirectories, highlight *.ms directories
+    try:
+        names = sorted(os.listdir(path))
+        for name in names:
+            full = os.path.join(path, name)
+            if not os.path.isdir(full):
+                continue
+            is_ms = name.endswith(".ms")
+            entries.append({"name": name, "full": full, "is_ms": is_ms})
+        # Sort: ms dirs first, then others
+        entries.sort(key=lambda d: (not d["is_ms"], d["name"].lower()))
+    except Exception as exc:
+        error = f"Could not list directory: {exc}"
+        entries = []
+
+    home_path = os.path.expanduser("~")
+    cwd_path = os.path.abspath(str(Path.cwd()))
+
+    ms_entries = [e for e in entries if e.get("is_ms")]
+    dir_entries = [e for e in entries if not e.get("is_ms")]
+
+    return render_template_string(
+        BROWSE_TEMPLATE,
+        field=field,
+        path=path,
+        parent=parent,
+        ms_entries=ms_entries,
+        dir_entries=dir_entries,
+        error=error,
+        home_path=home_path if os.path.isdir(home_path) else None,
+        cwd_path=cwd_path,
+    )
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -1166,9 +1471,11 @@ def index():
         elif action == "submit_job":
             # SECTION 2 ONLY (joint AWP)
             # per-epoch MS and flags
+            selected_vis_cfg = {1: '', 2: '', 3: ''}
             for i in vlass_indices:
                 vis_val = request.form.get(f"vis{i}", "").strip()
                 selected_vis[i] = vis_val
+                selected_vis_cfg[i] = ensure_ms_in_cwd(vis_val, i)
                 per_flags[i]["target_split"] = parse_bool_form(
                     request.form, f"vis{i}_target_split", per_flags[i]["target_split"]
                 )
@@ -1259,7 +1566,7 @@ def index():
             email = request.form.get("email2", "").strip()
 
             # Build vis_list and processing_flags for JSON
-            vis_list = [selected_vis[i] for i in vlass_indices]
+            vis_list = [selected_vis_cfg[i] for i in vlass_indices]
             processing_flags = [per_flags[i] for i in vlass_indices]
 
             # Report-only mode if no vis selected
@@ -1574,6 +1881,8 @@ if __name__ == "__main__":
         # If we got here, the port is free (we just bound it).
         print(f"Starting VLASS web interface on http://127.0.0.1:{port}")
         app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+        #print(f"Starting VLASS web interface on https://vlass.userdefineimage.edu")
+        #app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
         break
     else:
         print(f"No free port found in range {base_port}–{base_port + max_tries - 1}")
